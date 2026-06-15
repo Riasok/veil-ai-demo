@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veil AI — 금융 LLM 보안 게이트웨이</title>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f7f8fa; --surface2:#eef1f5; --line:#e2e6ec;
+    --ink:#1a2230; --ink-2:#54607a; --ink-3:#8a93a6;
+    --rule:#5b6472; --rule-bg:#eef0f3;
+    --ai:#0a7d72; --ai-bg:#e3f6f2;
+    --block:#d6453e; --block-bg:#fdecea;
+    --pass:#0a7d72; --pass-bg:#e3f6f2;
+    --warn:#b97b07; --warn-bg:#fdf3e0;
+    --review:#3358d4; --review-bg:#eaeefc;
+    --llm:#6d4bd1; --llm-bg:#f0ebfb;
+    --mono:'SFMono-Regular',ui-monospace,'JetBrains Mono',Consolas,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','Pretendard','Apple SD Gothic Neo',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:16px;line-height:1.55}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 24px 72px}
+
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+         border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+  .logo{font-family:var(--mono);font-weight:700;font-size:22px;letter-spacing:-.01em}
+  .logo b{color:var(--ai)}
+  .tag{color:var(--ink-2);font-size:14.5px}
+
+  .flip-hint{margin-left:auto;font-size:13.5px;color:var(--ink-3);display:flex;align-items:center;gap:7px}
+  .flip-hint svg{width:16px;height:16px}
+
+  /* flip card */
+  .scene{perspective:2200px;margin-bottom:10px}
+  .flip{position:relative;width:100%;transition:transform .65s cubic-bezier(.4,.15,.2,1);
+        transform-style:preserve-3d;min-height:340px}
+  .flip.flipped{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+        display:flex;flex-direction:column}
+  .back{transform:rotateY(180deg)}
+
+  /* flip toggle bar */
+  .toggle{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+          width:max-content;margin:0 auto 14px;background:var(--surface);
+          transition:opacity .14s ease,transform .16s ease}
+  .toggle button{border:none;background:transparent;padding:9px 20px;font-size:14px;
+          cursor:pointer;color:var(--ink-3);font-family:var(--sans);font-weight:600;transition:.12s}
+  .toggle button.on{background:#fff;color:var(--ink);box-shadow:0 0 0 1px var(--ai) inset}
+
+  /* FRONT: io */
+  .io{display:grid;grid-template-columns:1fr 72px 1fr;gap:0;align-items:stretch}
+  @media(max-width:760px){.io{grid-template-columns:1fr}.io-arrow{display:none;height:40px}}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+        display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(20,30,50,.04),0 8px 24px rgba(20,30,50,.04)}
+  .card-h{padding:13px 18px;border-bottom:1px solid var(--line);font-size:13.5px;
+          display:flex;align-items:center;gap:8px;color:var(--ink-2);background:var(--surface)}
+  .card-h .dot{width:8px;height:8px;border-radius:99px}
+  .dot.in{background:var(--block)} .dot.out{background:var(--pass)}
+  .card-h .verdict{margin-left:auto;font-family:var(--mono);font-size:12px;font-weight:700;
+          padding:3px 9px;border-radius:5px}
+  .v-block{background:var(--block-bg);color:var(--block)}
+  .v-pass{background:var(--pass-bg);color:var(--pass)}
+  .card-b{padding:22px 20px;font-family:var(--mono);font-size:15px;line-height:1.95;
+          white-space:pre-wrap;word-break:break-word;flex:1}
+  .io-arrow{display:flex;align-items:center;justify-content:center;color:var(--ai)}
+
+  mark{border-radius:4px;padding:1px 4px;font-weight:600;font-style:normal}
+  mark.b{background:var(--block-bg);color:var(--block)}
+  mark.p{background:var(--pass-bg);color:var(--pass)}
+  mark.m{background:var(--warn-bg);color:var(--warn)}
+  mark.r{background:var(--review-bg);color:var(--review)}
+  mark.t{background:var(--ai-bg);color:var(--ai)}
+
+  /* BACK: pipeline */
+  .back-inner{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+              padding:16px;flex:1;overflow:auto}
+  .back-h{font-size:13px;color:var(--ink-3);margin-bottom:12px;letter-spacing:.02em;
+          text-transform:uppercase;display:flex;align-items:center;gap:10px}
+  .back-h .lgnd{margin-left:auto;display:flex;gap:12px;text-transform:none;letter-spacing:0}
+  .back-h .lgnd span{display:inline-flex;align-items:center;gap:5px;font-size:12px}
+  .back-h .lgnd i{width:9px;height:9px;border-radius:2px}
+
+  .step{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff;overflow:hidden}
+  .step-top{display:flex;align-items:center;gap:12px;padding:13px 16px}
+  .step-n{font-family:var(--mono);font-size:13px;color:var(--ink-3);width:18px;flex:none}
+  .step-title{font-weight:600;font-size:15.5px}
+  .eng{font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;letter-spacing:.03em}
+  .eng.rule{background:var(--rule-bg);color:var(--rule)}
+  .eng.ai{background:var(--ai-bg);color:var(--ai)}
+  .eng.llm{background:var(--llm-bg);color:var(--llm)}
+  .eng.rule-ai{background:linear-gradient(90deg,var(--rule-bg) 50%,var(--ai-bg) 50%);color:var(--ink-2)}
+  .step-body{padding:2px 16px 14px 46px}
+  .step-body ul{margin:8px 0 6px;padding-left:0;list-style:none}
+  .step-body li{font-family:var(--mono);font-size:14px;padding:5px 0;color:var(--ink);
+                display:flex;gap:9px;align-items:flex-start;line-height:1.55}
+  .step-body li::before{content:"›";color:var(--ink-3);flex:none}
+  .step-note{font-size:13px;color:var(--ink-3);margin-top:5px}
+  .gate-line{display:flex;align-items:center;gap:10px;margin:6px 0;color:var(--llm);
+             font-size:13px;font-family:var(--mono);justify-content:center}
+  .gate-line::before,.gate-line::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .score{margin-top:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .score-h{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--block-bg)}
+  .score-h b{font-family:var(--mono);font-size:26px;color:var(--block);line-height:1}
+  .score-h span{font-size:14px;color:var(--ink-2)}
+  .score-h .lvl{margin-left:auto;font-family:var(--mono);font-size:12px;font-weight:700;
+                background:var(--block);color:#fff;padding:3px 10px;border-radius:5px}
+  .score table{width:100%;border-collapse:collapse;font-size:14px}
+  .score td{padding:8px 14px;border-top:1px solid var(--line)}
+  .score td:first-child{font-family:var(--mono);color:var(--ink)}
+  .score td:nth-child(2){text-align:right;color:var(--ink-2)}
+  .score td:last-child{text-align:right;color:var(--ink-3);font-size:12.5px}
+  .bar{height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:11px 14px}
+  .bar i{display:block;height:100%;background:var(--block)}
+
+  /* findings table (front-bottom) */
+  .ft{background:#fff;border:1px solid var(--line);border-radius:11px;overflow:hidden;margin-top:14px}
+  .ft h3{margin:0;padding:12px 16px;font-size:13px;color:var(--ink-3);border-bottom:1px solid var(--line);
+         font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  table.f{width:100%;border-collapse:collapse;font-size:14.5px}
+  table.f th{text-align:left;padding:10px 16px;color:var(--ink-3);font-weight:500;font-size:12.5px;
+             border-bottom:1px solid var(--line)}
+  table.f td{padding:11px 16px;border-bottom:1px solid var(--surface);vertical-align:top}
+  table.f tr:last-child td{border-bottom:none}
+  .badge{font-family:var(--mono);font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:5px}
+  .a-BLOCK{background:var(--block-bg);color:var(--block)}
+  .a-TOKENIZE,.a-PSEUDONYMIZE{background:var(--pass-bg);color:var(--pass)}
+  .a-MASK{background:var(--warn-bg);color:var(--warn)}
+  .a-REVIEW{background:var(--review-bg);color:var(--review)}
+  .a-PASS{background:var(--rule-bg);color:var(--rule)}
+  .basis{color:var(--ink-3);font-family:var(--mono);font-size:13px}
+
+  /* live chat */
+  .chat-panel{margin:0 0 24px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;
+             box-shadow:0 1px 3px rgba(20,30,50,.04),0 8px 24px rgba(20,30,50,.04)}
+  .chat-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 16px;
+             border-bottom:1px solid var(--line);background:var(--surface)}
+  .chat-title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .chat-title h2{margin:0;font-size:16px;letter-spacing:0}
+  .chat-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .veil-toggle{border:1px solid var(--ai);background:var(--ai-bg);color:var(--ai);border-radius:7px;
+               padding:7px 11px;font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;
+               transition:background-color .14s ease,border-color .14s ease,color .14s ease,transform .12s ease}
+  .veil-toggle:active{transform:translateY(1px)}
+  .veil-toggle.off{border-color:var(--line);background:var(--surface);color:var(--ink-3)}
+  .chat-grid{display:grid;grid-template-columns:minmax(0,1fr);
+             height:clamp(560px,68vh,700px);min-height:0;overflow:hidden;
+             transition:grid-template-columns .18s ease}
+  .chat-panel.plain .chat-grid{grid-template-columns:minmax(0,1fr)}
+  .chat-panel.plain .chat-main{border-bottom:none}
+  .chat-main{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%}
+  .chat-log{flex:1;min-height:0;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fbfcfd;overflow:auto}
+  .msg{display:flex;flex-direction:column;gap:5px;max-width:min(720px,88%);animation:itemIn .16s ease both}
+  .msg.user{align-self:flex-end;align-items:flex-end}
+  .msg.assistant{align-self:flex-start}
+  .bubble{border:1px solid var(--line);border-radius:8px;padding:11px 13px;white-space:pre-wrap;word-break:break-word;
+          background:#fff;font-size:14.5px;line-height:1.6}
+  .msg.user .bubble{background:var(--ai);border-color:var(--ai);color:#fff}
+  .msg .meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+  .chat-compose{border-top:1px solid var(--line);padding:12px;background:#fff;flex:none}
+  .clear-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:7px;
+              padding:7px 10px;font-family:var(--sans);font-size:13px;cursor:pointer;
+              transition:border-color .12s ease,background-color .12s ease,transform .12s ease}
+  .clear-btn:hover{border-color:var(--ink-3)}
+  .clear-btn:active{transform:translateY(1px)}
+  .compose-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:stretch}
+  .compose-row textarea{width:100%;min-height:108px;max-height:180px;resize:vertical;border:1px solid var(--line);
+                        border-radius:8px;padding:11px 12px;font-family:var(--sans);font-size:14.5px;
+                        line-height:1.55;color:var(--ink)}
+  .compose-row textarea:focus{outline:none;border-color:var(--ai);box-shadow:0 0 0 2px rgba(10,125,114,.12)}
+  .send-stack{display:flex;flex-direction:column;gap:8px;min-width:76px}
+  .send-stack .clear-btn,.send-stack .send-btn{width:100%}
+  .send-btn{border:1px solid var(--ai);background:var(--ai);color:#fff;border-radius:8px;padding:0 17px;
+            min-height:0;flex:1;font-family:var(--sans);font-weight:700;cursor:pointer}
+  .send-btn:disabled{opacity:.52;cursor:not-allowed}
+  .example-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:10px;
+                border-bottom:1px solid var(--line);background:#fff}
+  .example-btn{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:7px;
+               padding:8px 10px;cursor:pointer;font-family:var(--sans);color:var(--ink);
+               transition:background-color .14s ease,border-color .14s ease,box-shadow .14s ease,transform .12s ease}
+  .example-btn:hover{border-color:var(--ink-3)}
+  .example-btn:active{transform:translateY(1px)}
+  .example-btn.active{border-color:var(--ai);box-shadow:0 0 0 1px var(--ai) inset;background:var(--ai-bg)}
+  .example-btn b{display:block;font-size:13.5px;font-weight:700}
+  .example-btn span{display:block;margin-top:2px;font-size:12px;color:var(--ink-3)}
+  .analysis-demo{display:block;overflow:hidden;max-height:2600px;opacity:1;transform:translateY(0);
+                 transition:max-height .18s ease,opacity .14s ease,transform .16s ease}
+  .analysis-demo.collapsed{max-height:0;opacity:0;transform:translateY(-6px);pointer-events:none}
+  .content-enter{animation:itemIn .18s ease both}
+
+  @keyframes itemIn{
+    from{opacity:0;transform:translateY(5px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+
+  @media(max-width:900px){
+    .chat-grid{grid-template-columns:1fr;height:auto;overflow:visible}
+    .chat-main{border-right:none;border-bottom:1px solid var(--line);height:560px}
+    .example-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .chat-head{align-items:flex-start;flex-direction:column}
+    .msg{max-width:100%}
+  }
+
+  @media(max-width:560px){
+    .example-list{grid-template-columns:1fr}
+  }
+
+  .foot{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;font-size:13px;color:var(--ink-3)}
+  .foot .disc{background:var(--warn-bg);color:var(--warn);border-radius:7px;padding:9px 13px;
+              display:inline-block;font-weight:600;font-size:13.5px}
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><b>Veil</b> AI</div>
+    <div class="tag">금융 LLM 보안 게이트웨이</div>
+  </header>
+
+  <section class="chat-panel" aria-label="Veil AI live chat">
+    <div class="chat-head">
+      <div class="chat-title">
+        <h2>Agentic Chatbot for Agentic Chat Gateway</h2>
+      </div>
+      <div class="chat-head-actions">
+        <button class="veil-toggle" type="button" id="veilToggle">VeilAI ON</button>
+      </div>
+    </div>
+    <div class="chat-grid">
+      <div class="chat-main">
+        <div class="example-list" id="exampleList" aria-label="예시"></div>
+        <div class="chat-log" id="chatLog"></div>
+        <form class="chat-compose" id="chatForm">
+          <div class="compose-row">
+            <textarea id="chatInput" rows="3" placeholder="메시지 입력"></textarea>
+            <div class="send-stack">
+              <button class="clear-btn" type="button" id="chatClear">Clear</button>
+              <button class="send-btn" type="submit" id="chatSend">전송</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="analysis-demo collapsed" id="analysisDemo">
+  <!-- 앞/뒤 전환 토글 -->
+  <div class="toggle">
+    <button id="btn-front" class="on" onclick="setFace(false)">입력 · 출력</button>
+    <button id="btn-back" onclick="setFace(true)">처리 로직 ↻</button>
+  </div>
+
+  <div class="scene">
+    <div class="flip" id="flip">
+      <!-- FRONT -->
+      <div class="face front" id="front">
+        <div class="io">
+          <div class="card">
+            <div class="card-h"><span class="dot in"></span>직원 입력 (원문)</div>
+            <div class="card-b" id="raw"></div>
+          </div>
+          <div class="io-arrow">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="dot out"></span>마스킹 미리보기
+              <span class="verdict v-pass" id="verdict">미리보기</span></div>
+            <div class="card-b" id="cleaned"></div>
+          </div>
+        </div>
+      </div>
+      <!-- BACK -->
+      <div class="face back" id="back">
+        <div class="back-inner">
+          <div class="back-h">게이트 처리 로직
+            <span class="lgnd">
+              <span><i style="background:var(--rule)"></i>규칙엔진</span>
+              <span><i style="background:var(--ai)"></i>AI 판단</span>
+              <span><i style="background:var(--llm)"></i>외부 LLM</span>
+            </span>
+          </div>
+          <div id="steps"></div>
+          <div class="ft">
+            <h3>탐지 항목 · 법령 근거</h3>
+            <table class="f">
+              <thead><tr><th style="width:24%">항목</th><th style="width:30%">법적 분류</th>
+              <th style="width:30%">근거</th><th style="width:16%">처리</th></tr></thead>
+              <tbody id="ftable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </section>
+
+</div>
+
+<script src="examples.js"></script>
+<script>
+const ENG_LABEL={rule:"규칙엔진",ai:"AI 판단",llm:"외부 LLM","rule+ai":"규칙+AI"};
+function engClass(e){return e==="rule+ai"?"rule-ai":e;}
+const SAFE_ACTIONS=new Set(["PASS","MASK","TOKENIZE","PSEUDONYMIZE","REVIEW","BLOCK"]);
+function safeAction(value,fallback="PASS"){
+  const normalized=String(value || fallback).toUpperCase();
+  return SAFE_ACTIONS.has(normalized)?normalized:fallback;
+}
+function clampPercent(value){
+  const n=Number(value);
+  if(!Number.isFinite(n))return 0;
+  return Math.max(0,Math.min(100,Math.round(n)));
+}
+function animateNode(node){
+  if(!node || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches))return;
+  node.classList.remove('content-enter');
+  void node.offsetWidth;
+  node.classList.add('content-enter');
+}
+function animateDeck(){
+  ['raw','cleaned','steps','ftable'].forEach(id=>animateNode(document.getElementById(id)));
+}
+
+const DATA={scenarios:(window.EXAMPLES||{})};
+let curKey=null;
+let flipped=false;
+let chatHistory=[];
+let chatBusy=false;
+let veilAIEnabled=true;
+let activeGateway=null;
+
+const exampleListEl=document.getElementById('exampleList');
+Object.entries(DATA.scenarios).forEach(([k,s])=>{
+  const b=document.createElement('button');
+  b.type='button';
+  b.className='example-btn';
+  b.dataset.scenario=k;
+  b.innerHTML='<b>'+s.name+'</b><span>'+s.who+'</span>';
+  b.onclick=()=>selectScenario(k,true);
+  exampleListEl.appendChild(b);
+});
+
+function updateExampleButtons(){
+  document.querySelectorAll('.example-btn').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.scenario===curKey);
+  });
+}
+
+function selectScenario(key, loadIntoChat=false){
+  if(!DATA.scenarios[key])return;
+  curKey=key;
+  updateExampleButtons();
+  activeGateway=null;
+  updateAnalysisVisibility();
+  const inputEl=document.getElementById('chatInput');
+  if(loadIntoChat && inputEl){
+    inputEl.value=DATA.scenarios[curKey].raw;
+    animateNode(inputEl);
+    inputEl.focus();
+  }
+}
+
+function hl(text){
+  return text
+    .replace(/〔차단:[^〕]*〕/g,m=>`<mark class="b">${m}</mark>`)
+    .replace(/⟦[^⟧]*⟧/g,m=>`<mark class="t">${m}</mark>`)
+    .replace(/⟨[^⟩]*⟩/g,m=>`<mark class="r">${m}</mark>`)
+    .replace(/•••-••••-\d{4}/g,m=>`<mark class="m">${m}</mark>`);
+}
+
+function escapeHTML(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function hlSafe(text){
+  return hl(escapeHTML(text));
+}
+
+function setFace(toBack){
+  flipped=toBack;
+  document.getElementById('flip').classList.toggle('flipped',toBack);
+  document.getElementById('btn-front').classList.toggle('on',!toBack);
+  document.getElementById('btn-back').classList.toggle('on',toBack);
+  syncHeight();
+}
+
+function syncHeight(){
+  // absolute 면은 직접 높이 측정이 부정확하므로, 내부 콘텐츠 높이를 측정
+  const f=document.getElementById('front');
+  const b=document.getElementById('back');
+  // 두 면 모두 임시로 측정 가능 상태로 만들어 높이 계산
+  const measure=el=>{
+    const prev=el.style.cssText;
+    el.style.position='relative';
+    el.style.visibility='hidden';
+    el.style.transform='none';
+    const h=el.offsetHeight;
+    el.style.cssText=prev;
+    return h;
+  };
+  const fh=measure(f), bh=measure(b);
+  const h=flipped?bh:fh;
+  document.getElementById('flip').style.minHeight=h+'px';
+}
+
+function render(){
+  const result=activeGateway;
+  const rawText=result?.raw || '';
+  document.getElementById('raw').innerHTML=rawText?hlSafe(rawText):'';
+  document.getElementById('cleaned').innerHTML=result?hlSafe(result.sanitized || ''):'';
+
+  const v=document.getElementById('verdict');
+  const policy=result?.policy || 'RUNNING';
+  v.textContent=policy==='RUNNING'?'분석 중':`정책 ${safeAction(policy)}`;
+  v.className='verdict '+(policy==='PASS'||policy==='MASK'?'v-pass':'v-block');
+
+  const steps=result?.steps || [{
+    layer:'RUN',
+    title:'Gateway analysis',
+    engine:'rule+ai',
+    found:['Gateway analysis is running for this chat message'],
+    note:'The result is generated from the active /api/chat request.'
+  }];
+  document.getElementById('steps').innerHTML=steps.map((st,idx)=>{
+    if(st.layer==="LLM"){
+      return `<div class="gate-line">═ 외부 LLM 경계 · ${st.found[0]} ═</div>`;
+    }
+    let body=`<ul>${st.found.map(f=>`<li>${escapeHTML(f)}</li>`).join('')}</ul>`;
+    if(st.note)body+=`<div class="step-note">${escapeHTML(st.note)}</div>`;
+    if(st.score){
+      const sc=st.score;
+      const total=clampPercent(sc.total);
+      body+=`<div class="score">
+        <div class="score-h"><b>${escapeHTML(total)}</b><span>/100 결합 식별 위험</span><span class="lvl">HIGH</span></div>
+        <table>${sc.rows.map(r=>`<tr><td>${escapeHTML(r[0])}</td><td>${escapeHTML(r[1])}</td><td>${escapeHTML(r[2])}</td></tr>`).join('')}</table>
+        <div class="bar"><i style="width:${total}%"></i></div>
+      </div>`;
+    }
+    return `<div class="step">
+      <div class="step-top">
+        <span class="step-n">${idx+1}</span>
+        <span class="step-title">${escapeHTML(st.title || '')}</span>
+        <span class="eng ${engClass(st.engine)}">${ENG_LABEL[st.engine]}</span>
+      </div>
+      <div class="step-body">${body}</div>
+    </div>`;
+  }).join('');
+
+  const findings=Array.isArray(result?.findings)?result.findings:[];
+  document.getElementById('ftable').innerHTML=findings.map(r=>{
+    const action=safeAction(r.action);
+    return `<tr><td style="font-family:var(--mono)">${escapeHTML(r.item || '')}</td><td style="color:var(--ink-2)">${escapeHTML(r.category || '')}</td>
+     <td class="basis">${escapeHTML(r.basis || '')}</td><td><span class="badge a-${action}">${action}</span></td></tr>`;
+  }).join('');
+
+  syncHeight();
+}
+
+window.addEventListener('resize',syncHeight);
+render();
+setFace(false);
+
+const chatLog=document.getElementById('chatLog');
+const chatForm=document.getElementById('chatForm');
+const chatInput=document.getElementById('chatInput');
+const chatSend=document.getElementById('chatSend');
+const chatClear=document.getElementById('chatClear');
+const veilToggle=document.getElementById('veilToggle');
+const chatPanel=document.querySelector('.chat-panel');
+const analysisDemo=document.getElementById('analysisDemo');
+const flipToggleBar=document.querySelector('.toggle');
+
+function renderChat(){
+  chatLog.innerHTML=chatHistory.map(msg=>{
+    const role=msg.role==='user'?'user':'assistant';
+    const meta=msg.meta?`<div class="meta">${escapeHTML(msg.meta)}</div>`:'';
+    return `<div class="msg ${role}"><div class="bubble">${escapeHTML(msg.content)}</div>${meta}</div>`;
+  }).join('');
+  chatLog.scrollTop=chatLog.scrollHeight;
+}
+
+function setBusy(isBusy){
+  chatBusy=isBusy;
+  chatSend.disabled=isBusy;
+  chatClear.disabled=isBusy;
+  chatSend.textContent=isBusy?'처리 중':'전송';
+}
+
+async function loadConfig(){
+  try{
+    const res=await fetch('/api/config');
+    const cfg=await res.json();
+    veilAIEnabled=Boolean(cfg.veilai_enabled);
+    updateVeilToggle();
+  }catch(err){
+    veilAIEnabled=false;
+    updateVeilToggle();
+  }
+}
+
+function updateAnalysisVisibility(){
+  const show=veilAIEnabled && Boolean(activeGateway);
+  analysisDemo.classList.toggle('collapsed',!show);
+  flipToggleBar.setAttribute('aria-hidden',String(!show));
+  if(show){
+    syncHeight();
+    animateNode(analysisDemo);
+  }else{
+    setFace(false);
+  }
+}
+
+function updateVeilToggle(){
+  veilToggle.textContent=veilAIEnabled?'VeilAI ON':'VeilAI OFF';
+  veilToggle.classList.toggle('off',!veilAIEnabled);
+  chatPanel.classList.toggle('plain',!veilAIEnabled);
+  updateAnalysisVisibility();
+}
+
+veilToggle.addEventListener('click',()=>{
+  veilAIEnabled=!veilAIEnabled;
+  updateVeilToggle();
+  if(activeGateway)render();
+});
+
+chatClear.addEventListener('click',()=>{
+  if(chatBusy)return;
+  chatInput.value='';
+  chatHistory=[];
+  curKey=null;
+  updateExampleButtons();
+  activeGateway=null;
+  render();
+  updateAnalysisVisibility();
+  renderChat();
+  animateNode(chatLog);
+  animateNode(chatInput);
+  chatInput.focus();
+});
+
+chatInput.addEventListener('input',()=>{
+  // Editing a loaded example makes it free-typed chat → routed live (custom).
+  if(curKey && chatInput.value!==DATA.scenarios[curKey].raw){
+    curKey=null;
+    updateExampleButtons();
+  }
+});
+
+chatForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(chatBusy)return;
+  const content=chatInput.value.trim();
+  if(!content)return;
+  const requestVeilAI=veilAIEnabled;
+  const scenarioSent=curKey || 'custom';
+  const isExample=scenarioSent!=='custom';
+  const reference=(isExample && DATA.scenarios[scenarioSent]) ? (DATA.scenarios[scenarioSent].answer || '') : '';
+  chatHistory.push({role:'user',content});
+  chatInput.value='';
+  renderChat();
+  if(requestVeilAI){
+    activeGateway={
+      raw:content,
+      sanitized:'분석 중...',
+      policy:'RUNNING',
+      findings:[],
+      steps:[{
+        layer:'RUN',
+        title:'Gateway analysis',
+        engine:'rule+ai',
+        found:['Gateway analysis is running for this chat message'],
+        note:'The result is generated from the active /api/chat request.'
+      }]
+    };
+    render();
+    updateAnalysisVisibility();
+    animateDeck();
+  }else{
+    activeGateway=null;
+    updateAnalysisVisibility();
+  }
+  setBusy(true);
+  try{
+    const res=await fetch('/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({scenario:scenarioSent,veilai_enabled:requestVeilAI,reference,messages:chatHistory.map(({role,content})=>({role,content}))})
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.error || `HTTP ${res.status}`);
+    // Built-in examples are instant (rule-based/local); hold the "분석 중" deck 2–3s so the gateway processing reads naturally.
+    if(isExample){await new Promise(r=>setTimeout(r,2000+Math.random()*1000));}
+    chatHistory.push({role:'assistant',content:data.assistant});
+    if(requestVeilAI){
+      activeGateway={...data,raw:data.raw || content};
+      render();
+      updateAnalysisVisibility();
+      animateDeck();
+    }
+  }catch(err){
+    chatHistory.push({role:'assistant',content:`요청 실패: ${err.message}`,meta:'error'});
+    if(requestVeilAI){
+      activeGateway={
+        raw:content,
+        sanitized:`분석 실패: ${err.message}`,
+        policy:'REVIEW',
+        findings:[{item:'backend',category:'runtime',basis:err.message,action:'REVIEW'}],
+        steps:[{layer:'ERR',title:'Gateway analysis failed',engine:'rule+ai',found:[err.message],note:'/api/chat did not return a usable result.'}]
+      };
+      render();
+      updateAnalysisVisibility();
+      animateDeck();
+    }
+  }finally{
+    renderChat();
+    setBusy(false);
+  }
+});
+
+renderChat();
+loadConfig();
+</script>
+</body>
+</html>

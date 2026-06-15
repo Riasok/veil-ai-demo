@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Veil AI — 금융 LLM 보안 게이트웨이</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f7f8fa;
+            --surface2: #eef1f5;
+            --line: #e2e6ec;
+            --ink: #1a2230;
+            --ink-2: #54607a;
+            --ink-3: #8a93a6;
+            --rule: #5b6472;
+            --rule-bg: #eef0f3;
+            --ai: #0a7d72;
+            --ai-bg: #e3f6f2;
+            --block: #d6453e;
+            --block-bg: #fdecea;
+            --pass: #0a7d72;
+            --pass-bg: #e3f6f2;
+            --warn: #b97b07;
+            --warn-bg: #fdf3e0;
+            --review: #3358d4;
+            --review-bg: #eaeefc;
+            --llm: #6d4bd1;
+            --llm-bg: #f0ebfb;
+            --mono: 'SFMono-Regular', ui-monospace, 'JetBrains Mono', Consolas, monospace;
+            --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--sans);
+            font-size: 16px;
+            line-height: 1.55
+        }
+
+        .wrap {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 26px 24px 72px
+        }
+
+        header {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 16px;
+            margin-bottom: 18px
+        }
+
+        .logo {
+            font-family: var(--mono);
+            font-weight: 700;
+            font-size: 22px;
+            letter-spacing: -.01em
+        }
+
+        .logo b {
+            color: var(--ai)
+        }
+
+        .tag {
+            color: var(--ink-2);
+            font-size: 14.5px
+        }
+
+        .legal {
+            margin-left: auto;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: var(--ink-3);
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            padding: 6px 11px;
+            line-height: 1.5;
+            text-align: right
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center
+        }
+
+        .tab {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            color: var(--ink-2);
+            padding: 10px 16px;
+            border-radius: 9px;
+            cursor: pointer;
+            font-size: 15px;
+            font-family: var(--sans);
+            transition: .12s
+        }
+
+        .tab .who {
+            display: block;
+            font-size: 12px;
+            color: var(--ink-3);
+            margin-top: 2px
+        }
+
+        .tab:hover {
+            border-color: var(--ink-3)
+        }
+
+        .tab.active {
+            background: #fff;
+            border-color: var(--ai);
+            color: var(--ink);
+            box-shadow: 0 0 0 1px var(--ai)
+        }
+
+        .tab.active .who {
+            color: var(--ai)
+        }
+
+        .flip-hint {
+            margin-left: auto;
+            font-size: 13.5px;
+            color: var(--ink-3);
+            display: flex;
+            align-items: center;
+            gap: 7px
+        }
+
+        .flip-hint svg {
+            width: 16px;
+            height: 16px
+        }
+
+        /* flip card */
+        .scene {
+            perspective: 2200px;
+            margin-bottom: 10px
+        }
+
+        .flip {
+            position: relative;
+            width: 100%;
+            transition: transform .65s cubic-bezier(.4, .15, .2, 1);
+            transform-style: preserve-3d;
+            min-height: 340px
+        }
+
+        .flip.flipped {
+            transform: rotateY(180deg)
+        }
+
+        .face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            display: flex;
+            flex-direction: column
+        }
+
+        .back {
+            transform: rotateY(180deg)
+        }
+
+        /* flip toggle bar */
+        .toggle {
+            display: flex;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
+            width: max-content;
+            margin: 0 auto 14px;
+            background: var(--surface)
+        }
+
+        .toggle button {
+            border: none;
+            background: transparent;
+            padding: 9px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--ink-3);
+            font-family: var(--sans);
+            font-weight: 600;
+            transition: .12s
+        }
+
+        .toggle button.on {
+            background: #fff;
+            color: var(--ink);
+            box-shadow: 0 0 0 1px var(--ai) inset
+        }
+
+        /* FRONT: io */
+        .io {
+            display: grid;
+            grid-template-columns: 1fr 72px 1fr;
+            gap: 0;
+            align-items: stretch
+        }
+
+        @media(max-width:760px) {
+            .io {
+                grid-template-columns: 1fr
+            }
+
+            .io-arrow {
+                display: none;
+                height: 40px
+            }
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 1px 3px rgba(20, 30, 50, .04), 0 8px 24px rgba(20, 30, 50, .04)
+        }
+
+        .card-h {
+            padding: 13px 18px;
+            border-bottom: 1px solid var(--line);
+            font-size: 13.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--ink-2);
+            background: var(--surface)
+        }
+
+        .card-h .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 99px
+        }
+
+        .dot.in {
+            background: var(--block)
+        }
+
+        .dot.out {
+            background: var(--pass)
+        }
+
+        .card-h .verdict {
+            margin-left: auto;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 5px
+        }
+
+        .v-block {
+            background: var(--block-bg);
+            color: var(--block)
+        }
+
+        .v-pass {
+            background: var(--pass-bg);
+            color: var(--pass)
+        }
+
+        .card-b {
+            padding: 22px 20px;
+            font-family: var(--mono);
+            font-size: 15px;
+            line-height: 1.95;
+            white-space: pre-wrap;
+            word-break: break-word;
+            flex: 1
+        }
+
+        .io-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ai)
+        }
+
+        mark {
+            border-radius: 4px;
+            padding: 1px 4px;
+            font-weight: 600;
+            font-style: normal
+        }
+
+        mark.b {
+            background: var(--block-bg);
+            color: var(--block)
+        }
+
+        mark.p {
+            background: var(--pass-bg);
+            color: var(--pass)
+        }
+
+        mark.m {
+            background: var(--warn-bg);
+            color: var(--warn)
+        }
+
+        mark.r {
+            background: var(--review-bg);
+            color: var(--review)
+        }
+
+        mark.t {
+            background: var(--ai-bg);
+            color: var(--ai)
+        }
+
+        /* BACK: pipeline */
+        .back-inner {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+            flex: 1;
+            overflow: auto
+        }
+
+        .back-h {
+            font-size: 13px;
+            color: var(--ink-3);
+            margin-bottom: 12px;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .back-h .lgnd {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+            text-transform: none;
+            letter-spacing: 0
+        }
+
+        .back-h .lgnd span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px
+        }
+
+        .back-h .lgnd i {
+            width: 9px;
+            height: 9px;
+            border-radius: 2px
+        }
+
+        .step {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            background: #fff;
+            overflow: hidden
+        }
+
+        .step-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px
+        }
+
+        .step-n {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--ink-3);
+            width: 18px;
+            flex: none
+        }
+
+        .step-title {
+            font-weight: 600;
+            font-size: 15.5px
+        }
+
+        .eng {
+            font-family: var(--mono);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 5px;
+            letter-spacing: .03em
+        }
+
+        .eng.rule {
+            background: var(--rule-bg);
+            color: var(--rule)
+        }
+
+        .eng.ai {
+            background: var(--ai-bg);
+            color: var(--ai)
+        }
+
+        .eng.llm {
+            background: var(--llm-bg);
+            color: var(--llm)
+        }
+
+        .eng.rule-ai {
+            background: linear-gradient(90deg, var(--rule-bg) 50%, var(--ai-bg) 50%);
+            color: var(--ink-2)
+        }
+
+        .step-body {
+            padding: 2px 16px 14px 46px
+        }
+
+        .step-body ul {
+            margin: 8px 0 6px;
+            padding-left: 0;
+            list-style: none
+        }
+
+        .step-body li {
+            font-family: var(--mono);
+            font-size: 14px;
+            padding: 5px 0;
+            color: var(--ink);
+            display: flex;
+            gap: 9px;
+            align-items: flex-start;
+            line-height: 1.55
+        }
+
+        .step-body li::before {
+            content: "›";
+            color: var(--ink-3);
+            flex: none
+        }
+
+        .step-note {
+            font-size: 13px;
+            color: var(--ink-3);
+            margin-top: 5px
+        }
+
+        .gate-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 6px 0;
+            color: var(--llm);
+            font-size: 13px;
+            font-family: var(--mono);
+            justify-content: center
+        }
+
+        .gate-line::before,
+        .gate-line::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--line)
+        }
+
+        .score {
+            margin-top: 10px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            overflow: hidden
+        }
+
+        .score-h {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 11px 14px;
+            background: var(--block-bg)
+        }
+
+        .score-h b {
+            font-family: var(--mono);
+            font-size: 26px;
+            color: var(--block);
+            line-height: 1
+        }
+
+        .score-h span {
+            font-size: 14px;
+            color: var(--ink-2)
+        }
+
+        .score-h .lvl {
+            margin-left: auto;
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 700;
+            background: var(--block);
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 5px
+        }
+
+        .score table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px
+        }
+
+        .score td {
+            padding: 8px 14px;
+            border-top: 1px solid var(--line)
+        }
+
+        .score td:first-child {
+            font-family: var(--mono);
+            color: var(--ink)
+        }
+
+        .score td:nth-child(2) {
+            text-align: right;
+            color: var(--ink-2)
+        }
+
+        .score td:last-child {
+            text-align: right;
+            color: var(--ink-3);
+            font-size: 12.5px
+        }
+
+        .bar {
+            height: 7px;
+            background: var(--surface2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 11px 14px
+        }
+
+        .bar i {
+            display: block;
+            height: 100%;
+            background: var(--block)
+        }
+
+        /* findings table (front-bottom) */
+        .ft {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            overflow: hidden;
+            margin-top: 14px
+        }
+
+        .ft h3 {
+            margin: 0;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: var(--ink-3);
+            border-bottom: 1px solid var(--line);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .03em
+        }
+
+        table.f {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14.5px
+        }
+
+        table.f th {
+            text-align: left;
+            padding: 10px 16px;
+            color: var(--ink-3);
+            font-weight: 500;
+            font-size: 12.5px;
+            border-bottom: 1px solid var(--line)
+        }
+
+        table.f td {
+            padding: 11px 16px;
+            border-bottom: 1px solid var(--surface);
+            vertical-align: top
+        }
+
+        table.f tr:last-child td {
+            border-bottom: none
+        }
+
+        .badge {
+            font-family: var(--mono);
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 5px
+        }
+
+        .a-BLOCK {
+            background: var(--block-bg);
+            color: var(--block)
+        }
+
+        .a-TOKENIZE,
+        .a-PSEUDONYMIZE {
+            background: var(--pass-bg);
+            color: var(--pass)
+        }
+
+        .a-MASK {
+            background: var(--warn-bg);
+            color: var(--warn)
+        }
+
+        .a-REVIEW {
+            background: var(--review-bg);
+            color: var(--review)
+        }
+
+        .a-PASS {
+            background: var(--rule-bg);
+            color: var(--rule)
+        }
+
+        .basis {
+            color: var(--ink-3);
+            font-family: var(--mono);
+            font-size: 13px
+        }
+
+        .foot {
+            margin-top: 18px;
+            border-top: 1px solid var(--line);
+            padding-top: 14px;
+            font-size: 13px;
+            color: var(--ink-3)
+        }
+
+        .foot .disc {
+            background: var(--warn-bg);
+            color: var(--warn);
+            border-radius: 7px;
+            padding: 9px 13px;
+            display: inline-block;
+            font-weight: 600;
+            font-size: 13.5px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <header>
+            <div class="logo"><b>Veil</b> AI</div>
+            <div class="tag">금융 LLM 보안 게이트웨이</div>
+            <div class="legal">인공지능기본법 · 금융 AI 가이드라인<br>신용정보법 §2 · 개인정보보호법 §24</div>
+        </header>
+
+        <div class="tabs" id="tabs"></div>
+
+        <!-- 앞/뒤 전환 토글 -->
+        <div class="toggle">
+            <button id="btn-front" class="on" onclick="setFace(false)">입력 · 출력</button>
+            <button id="btn-back" onclick="setFace(true)">처리 로직 ↻</button>
+        </div>
+
+        <div class="scene">
+            <div class="flip" id="flip">
+                <!-- FRONT -->
+                <div class="face front" id="front">
+                    <div class="io">
+                        <div class="card">
+                            <div class="card-h"><span class="dot in"></span>직원 입력 (원문)</div>
+                            <div class="card-b" id="raw"></div>
+                        </div>
+                        <div class="io-arrow">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5">
+                                <path d="M5 12h14M13 6l6 6-6 6" />
+                            </svg>
+                        </div>
+                        <div class="card">
+                            <div class="card-h"><span class="dot out"></span>외부 LLM 전송본 (정화 후)
+                                <span class="verdict v-pass" id="verdict">정화 완료</span>
+                            </div>
+                            <div class="card-b" id="cleaned"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- BACK -->
+                <div class="face back" id="back">
+                    <div class="back-inner">
+                        <div class="back-h">게이트 처리 로직
+                            <span class="lgnd">
+                                <span><i style="background:var(--rule)"></i>규칙엔진</span>
+                                <span><i style="background:var(--ai)"></i>AI 판단</span>
+                                <span><i style="background:var(--llm)"></i>외부 LLM</span>
+                            </span>
+                        </div>
+                        <div id="steps"></div>
+                        <div class="ft">
+                            <h3>탐지 항목 · 법령 근거</h3>
+                            <table class="f">
+                                <thead>
+                                    <tr>
+                                        <th style="width:24%">항목</th>
+                                        <th style="width:30%">법적 분류</th>
+                                        <th style="width:30%">근거</th>
+                                        <th style="width:16%">처리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ftable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="foot">
+            <span class="disc">⚠ 위험점수·판단 결과는 데모용 예시이며 실제 모델 출력이 아닙니다. 모든 인적·금융 데이터는 합성(가짜)입니다.</span>
+        </div>
+    </div>
+
+    <script>
+        const ENG_LABEL = { rule: "규칙엔진", ai: "AI 판단", llm: "외부 LLM", "rule+ai": "규칙+AI" };
+        function engClass(e) { return e === "rule+ai" ? "rule-ai" : e; }
+
+        const FINDINGS = {
+            complaint: [
+                ["휴대전화 010-5456-1520", "식별정보", "신용정보법 §2-1의2", "MASK"],
+                ["계좌 025-759-288389", "거래내용정보", "신용정보법 §2-1의3", "PSEUDONYMIZE"],
+                ["잔액 5,127만원", "거래내용정보 (맥락)", "신용정보법 §2-1의3", "BLOCK"],
+                ["이체한도 5,000만원 요청", "요청 의도 (비민감)", "—", "PASS"],
+                ["연체 1건 / 7등급", "신용도·평점", "신용정보법 §2-1의4·6", "PSEUDONYMIZE"],
+            ],
+            loan: [
+                ["성명 (비공개)", "직접 식별자 없음", "—", "PASS"],
+                ["법인+생년+직책 결합", "개인신용정보 (결합식별)", "신용정보법 §2-2호", "PSEUDONYMIZE"],
+                ["재무 수치 (매출·부채)", "기업 신용거래능력", "신용정보법 §2-1의5", "PASS"],
+            ],
+            devlog: [
+                ["카드 4000 0009… (공백형)", "거래내용정보", "신용정보법 §2-1의3, PCI-DSS", "TOKENIZE"],
+                ["주민번호 (한글·공백 우회)", "고유식별정보", "개인정보보호법 시행령 §19", "BLOCK"],
+                ["변수명 rrn / 주석", "코드 구조 (비민감)", "—", "PASS"],
+                ["password / secret", "접근매체", "전자금융거래법 §2", "BLOCK"],
+                ["fep-gw-01.internal", "기술자산 (대외비)", "내부 등급분류", "REVIEW"],
+            ],
+        };
+
+        const DATA = {
+            "scenarios": {
+                "complaint": {
+                    "name": "민원 응대",
+                    "who": "일반 직원 · 비정형",
+                    "star": "B 복원 왕복 + C 맥락",
+                    "raw": "[직원] 아래 민원 답변 초안 정중하게 작성해줘.\n\n고객명: 황지호 (010-5456-1520)\n요청사항: 이체 한도를 5,000만원으로 상향해달라는 민원입니다.\n계좌 현황: 신한 025-759-288389, 현재 잔액 5,127만원\n참고: 지난달 연체 1건으로 신용등급 7등급 하락 안내받음."
+                },
+                "loan": {
+                    "name": "여신 심사",
+                    "who": "심사역 · 기업+개인 혼재",
+                    "star": "A 결합 식별",
+                    "raw": "[직원] 이 심사 메모로 여신 적정성 의견 요약해줘.\n\n대상기업: 정금속공업(주) / 업종: 금속가공 / 종업원 18명\n대표자: (성명 비공개) / 1973년생 남성 / 대표이사\n재무: 매출 47억, 영업이익 3.2억, 부채비율 210%\n신청: 운전자금 5억 / 담보: 본사 사옥"
+                },
+                "devlog": {
+                    "name": "개발 디버깅",
+                    "who": "개발자 · 로그+코드",
+                    "star": "D 회피탐지 + 기술자산",
+                    "raw": "[직원] 결제 모듈 에러 원인 찾아줘.\n\n// String rrn 검증 로직에서 NPE 발생\nlog.debug(\"rrn=\" + rrn);  // 실값: 칠삼일이공사 1773971\nSELECT * FROM cust WHERE rrn='731204 1773971';\nresult -> name=황지호, card=4000 0009 8524 0631\n\n# db.yaml\npassword: P@ssw0rd_2026!prod\nfep_host: fep-gw-01.internal.bank.local"
+                }
+            },
+            "pipeline": {
+                "complaint": [
+                    {
+                        "layer": "L1",
+                        "title": "기본 PII 탐지",
+                        "engine": "rule",
+                        "found": [
+                            "휴대전화 010-5456-1520 → 마스킹",
+                            "계좌 025-759-288389 → 가명화"
+                        ],
+                        "note": "명백한 식별·거래정보. 정규식+검증."
+                    },
+                    {
+                        "layer": "C",
+                        "title": "맥락 판단",
+                        "engine": "ai",
+                        "found": [
+                            "‘이체한도 5,000만원’ → 요청 의도 → 통과",
+                            "‘잔액 5,127만원’ → 거래내용정보 → 차단"
+                        ],
+                        "note": "같은 금액 표현이 의도에 따라 다르게 처리됨."
+                    },
+                    {
+                        "layer": "B",
+                        "title": "일관 가명화",
+                        "engine": "rule",
+                        "found": [
+                            "‘황지호’ 2회 등장 → 모두 동일 토큰 ⟦P_017⟧로 치환"
+                        ],
+                        "note": "동일 인물은 동일 토큰 → LLM이 동일인 추론 가능."
+                    },
+                    {
+                        "layer": "LLM",
+                        "title": "외부 LLM 답변 생성",
+                        "engine": "llm",
+                        "found": [
+                            "안전한 입력으로 답변 작성 (토큰 상태 유지)"
+                        ],
+                        "note": ""
+                    },
+                    {
+                        "layer": "B2",
+                        "title": "복원",
+                        "engine": "rule",
+                        "found": [
+                            "⟦P_017⟧ → ‘황지호’ 복원 → 직원에게 완성 답변 제공"
+                        ],
+                        "note": "토큰을 원문으로 되돌려 업무 연속성 확보."
+                    }
+                ],
+                "loan": [
+                    {
+                        "layer": "L1",
+                        "title": "기본 PII 탐지",
+                        "engine": "rule",
+                        "found": [
+                            "직접 식별자 없음 (성명 비공개)"
+                        ],
+                        "note": "표면적으론 PII가 없어 통과처럼 보임."
+                    },
+                    {
+                        "layer": "A",
+                        "title": "결합 식별 판단",
+                        "engine": "ai",
+                        "found": [
+                            "정금속공업(18명) + 1973년생 + 대표이사 → 결합 위험 87/100",
+                            "사실상 1명으로 특정 가능 → 가명화 대상"
+                        ],
+                        "note": "신용정보법 §2-2호: 결합하여 식별 가능하면 개인신용정보.",
+                        "score": {
+                            "total": 87,
+                            "rows": [
+                                [
+                                    "서초구/금속가공 업종",
+                                    "낮음",
+                                    "수천 곳"
+                                ],
+                                [
+                                    "1973년생",
+                                    "낮음",
+                                    "다수"
+                                ],
+                                [
+                                    "정금속공업 재직(18명)",
+                                    "높음",
+                                    "소수"
+                                ],
+                                [
+                                    "+ 대표이사 직책",
+                                    "결정적",
+                                    "1명"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "layer": "B",
+                        "title": "일관 가명화",
+                        "engine": "rule",
+                        "found": [
+                            "회사·대표 식별 조합 → ⟦법인_A⟧/⟦대표_A⟧로 치환 (재무 수치는 보존)"
+                        ],
+                        "note": "분석에 필요한 재무 데이터는 남기고 식별 조합만 제거."
+                    },
+                    {
+                        "layer": "LLM",
+                        "title": "외부 LLM 답변 생성",
+                        "engine": "llm",
+                        "found": [
+                            "익명화된 입력으로 여신 의견 요약"
+                        ],
+                        "note": ""
+                    },
+                    {
+                        "layer": "B2",
+                        "title": "복원",
+                        "engine": "rule",
+                        "found": [
+                            "토큰 → 실제 기업/대표로 복원"
+                        ],
+                        "note": ""
+                    }
+                ],
+                "devlog": [
+                    {
+                        "layer": "L1",
+                        "title": "기본 PII 탐지",
+                        "engine": "rule",
+                        "found": [
+                            "카드 4000 0009 8524 0631(공백형) → Luhn 통과 → 토큰화",
+                            "‘황지호’ → 식별정보"
+                        ],
+                        "note": "공백 구분 카드번호도 정규화 후 검증."
+                    },
+                    {
+                        "layer": "D",
+                        "title": "회피 시도 탐지",
+                        "engine": "rule+ai",
+                        "found": [
+                            "‘칠삼일이공사 1773971’ (한글+숫자 혼합) → 주민번호 재구성 → 차단",
+                            "‘731204 1773971’ (공백 삽입) → 주민번호 → 차단"
+                        ],
+                        "note": "정규식을 우회하려는 변형도 정규화 후 탐지."
+                    },
+                    {
+                        "layer": "TECH",
+                        "title": "기술자산 경계 판단",
+                        "engine": "ai",
+                        "found": [
+                            "변수명 ‘rrn’, 주석 ‘rrn 검증 로직’ → 코드 구조 → 통과",
+                            "password: P@ssw0rd… → 접근매체 → 차단",
+                            "fep-gw-01.internal… → 내부 호스트 → 검토"
+                        ],
+                        "note": "변수/주석(구조)과 실제 값(런타임)을 구분."
+                    },
+                    {
+                        "layer": "B",
+                        "title": "일관 가명화",
+                        "engine": "rule",
+                        "found": [
+                            "탐지된 실값만 토큰화, 코드 구조는 보존 → 디버깅 가능"
+                        ],
+                        "note": ""
+                    },
+                    {
+                        "layer": "LLM",
+                        "title": "외부 LLM 답변 생성",
+                        "engine": "llm",
+                        "found": [
+                            "코드 구조 유지된 입력으로 NPE 원인 분석"
+                        ],
+                        "note": ""
+                    },
+                    {
+                        "layer": "B2",
+                        "title": "복원",
+                        "engine": "rule",
+                        "found": [
+                            "응답 내 토큰 복원 (해당 시)"
+                        ],
+                        "note": ""
+                    }
+                ]
+            },
+            "cleaned": {
+                "complaint": "[직원] 아래 민원 답변 초안 정중하게 작성해줘.\n\n고객명: ⟦P_017⟧ (•••-••••-1520)\n요청사항: 이체 한도를 5,000만원으로 상향해달라는 민원입니다.\n계좌 현황: ⟦ACCT_3⟧, 현재 잔액 ⟦금액:거래정보⟧\n참고: 지난달 연체 1건으로 신용등급 ⟦등급⟧ 하락 안내받음.",
+                "loan": "[직원] 이 심사 메모로 여신 적정성 의견 요약해줘.\n\n대상기업: ⟦법인_A⟧ / 업종: 금속가공 / 종업원 18명\n대표자: ⟦대표_A⟧ / (생년·직책 결합식별 차단)\n재무: 매출 47억, 영업이익 3.2억, 부채비율 210%\n신청: 운전자금 5억 / 담보: 본사 사옥",
+                "devlog": "[직원] 결제 모듈 에러 원인 찾아줘.\n\n// String rrn 검증 로직에서 NPE 발생\nlog.debug(\"rrn=\" + rrn);  // 실값: 〔차단:RRN〕\nSELECT * FROM cust WHERE rrn='〔차단:RRN〕';\nresult -> name=⟦P_017⟧, card=⟦TKN_CARD_5999⟧\n\n# db.yaml\npassword: 〔차단:SECRET〕\nfep_host: ⟨검토:fep-gw…⟩"
+            }
+        };
+        let curKey = Object.keys(DATA.scenarios)[0];
+        let flipped = false;
+
+        const tabsEl = document.getElementById('tabs');
+        Object.entries(DATA.scenarios).forEach(([k, s], i) => {
+            const b = document.createElement('button');
+            b.className = 'tab' + (i === 0 ? ' active' : '');
+            b.innerHTML = s.name + '<span class="who">' + s.who + '</span>';
+            b.onclick = () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                b.classList.add('active'); curKey = k; render();
+            };
+            tabsEl.appendChild(b);
+        });
+
+        function hl(text) {
+            return text
+                .replace(/〔차단:[^〕]*〕/g, m => `<mark class="b">${m}</mark>`)
+                .replace(/⟦[^⟧]*⟧/g, m => `<mark class="t">${m}</mark>`)
+                .replace(/⟨[^⟩]*⟩/g, m => `<mark class="r">${m}</mark>`)
+                .replace(/•••-••••-\d{4}/g, m => `<mark class="m">${m}</mark>`)
+                .replace(/(황지호|010-5456-1520|025-759-288389|4000 0009 8524 0631|칠삼일이공사 1773971|731204 1773971|P@ssw0rd_2026!prod|5,127만원)/g,
+                    m => `<mark class="b">${m}</mark>`)
+                .replace(/(1973년생|대표이사|정금속공업\(주\))/g, m => `<mark class="r">${m}</mark>`);
+        }
+
+        function setFace(toBack) {
+            flipped = toBack;
+            document.getElementById('flip').classList.toggle('flipped', toBack);
+            document.getElementById('btn-front').classList.toggle('on', !toBack);
+            document.getElementById('btn-back').classList.toggle('on', toBack);
+            syncHeight();
+        }
+
+        function syncHeight() {
+            // absolute 면은 직접 높이 측정이 부정확하므로, 내부 콘텐츠 높이를 측정
+            const f = document.getElementById('front');
+            const b = document.getElementById('back');
+            // 두 면 모두 임시로 측정 가능 상태로 만들어 높이 계산
+            const measure = el => {
+                const prev = el.style.cssText;
+                el.style.position = 'relative';
+                el.style.visibility = 'hidden';
+                el.style.transform = 'none';
+                const h = el.offsetHeight;
+                el.style.cssText = prev;
+                return h;
+            };
+            const fh = measure(f), bh = measure(b);
+            const h = flipped ? bh : fh;
+            document.getElementById('flip').style.minHeight = h + 'px';
+        }
+
+        function render() {
+            const k = curKey;
+            document.getElementById('raw').innerHTML = hl(DATA.scenarios[k].raw);
+            document.getElementById('cleaned').innerHTML = hl(DATA.cleaned[k]);
+
+            // verdict (차단 항목 있으면 표시)
+            const hasBlock = FINDINGS[k].some(r => r[3] === 'BLOCK');
+            const v = document.getElementById('verdict');
+            v.textContent = hasBlock ? '민감정보 차단·정화' : '정화 완료';
+            v.className = 'verdict ' + (hasBlock ? 'v-block' : 'v-pass');
+
+            // pipeline (뒷면)
+            const steps = DATA.pipeline[k];
+            document.getElementById('steps').innerHTML = steps.map((st, idx) => {
+                if (st.layer === "LLM") {
+                    return `<div class="gate-line">═ 외부 LLM 경계 · ${st.found[0]} ═</div>`;
+                }
+                let body = `<ul>${st.found.map(f => `<li>${f}</li>`).join('')}</ul>`;
+                if (st.note) body += `<div class="step-note">${st.note}</div>`;
+                if (st.score) {
+                    const sc = st.score;
+                    body += `<div class="score">
+        <div class="score-h"><b>${sc.total}</b><span>/100 결합 식별 위험</span><span class="lvl">HIGH</span></div>
+        <table>${sc.rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</table>
+        <div class="bar"><i style="width:${sc.total}%"></i></div>
+      </div>`;
+                }
+                return `<div class="step">
+      <div class="step-top">
+        <span class="step-n">${idx + 1}</span>
+        <span class="step-title">${st.title}</span>
+        <span class="eng ${engClass(st.engine)}">${ENG_LABEL[st.engine]}</span>
+      </div>
+      <div class="step-body">${body}</div>
+    </div>`;
+            }).join('');
+
+            // findings
+            document.getElementById('ftable').innerHTML = FINDINGS[k].map(r =>
+                `<tr><td style="font-family:var(--mono)">${r[0]}</td><td style="color:var(--ink-2)">${r[1]}</td>
+     <td class="basis">${r[2]}</td><td><span class="badge a-${r[3]}">${r[3]}</span></td></tr>`).join('');
+
+            syncHeight();
+        }
+
+        window.addEventListener('resize', syncHeight);
+        render();
+        setFace(false);
+    </script>
+</body>
+
+</html>
