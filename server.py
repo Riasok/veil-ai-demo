@@ -12,7 +12,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from veil_gateway import (
-    VEIL_MASKING_SYSTEM_PROMPT,
     add_amount_masks,
     add_combination_risk,
     apply_rule_masking,
@@ -78,8 +77,6 @@ def config():
         "base_url": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
         "live_api_calls": live_api_calls,
         "veilai_enabled": env_bool("VEILAI_ENABLED", True),
-        "restore_responses": env_bool("RESTORE_RESPONSES", True),
-        "block_on_review": env_bool("BLOCK_ON_REVIEW", True),
         "live_enabled": live_api_calls and api_key_configured,
     }
 
@@ -157,27 +154,38 @@ EXAMPLE_STYLE_SYSTEM_PROMPT = (
 )
 
 
-MASKING_ADVISOR_PROMPT = """당신은 외부 LLM 전송 전 마스킹 자문 분석기입니다. 두 가지를 판단해 JSON만 출력하세요.
+MASKING_ADVISOR_PROMPT = """당신은 외부 LLM 전송 전 '마스킹 자문 분석기'입니다. 입력 텍스트에서
+(1) 개인 귀속 금액과 (2) 준식별자 조합(재식별 위험)을 찾아 JSON으로만 출력합니다.
 
-[1] 개인 귀속 금액: 텍스트의 금액 표현 중 '특정 개인 또는 특정 계좌에 귀속된 값'(예: 누군가의
-잔액·잔고, 보유 자산, 개인이 실행한 송금·이체 금액)만 고르세요. '맥락/일반 수치'(예: 이체 한도,
-정책·상품 금액, 금리, 기업 매출·영업이익·부채 등 재무 수치)는 절대 고르지 마세요.
+[판단 기준]
+1) sensitive_amounts — 특정 개인/계좌에 귀속된 금액(누군가의 잔액·잔고, 보유 자산, 개인이 실행한
+   송금·이체액)만 포함. 맥락/일반 수치(이체 한도, 정책·상품 금액, 금리, 기업 매출·영업이익·부채 등
+   재무 수치)는 절대 포함하지 않음.
+2) 준식별자 조합 — 단독으로는 특정 못 하지만(나이/생년, 성별, 거주지, 직장·부서, 직책, 출신학교,
+   전공, 학위·졸업연도, 보유자산, 가족구성 등) 여러 개가 합쳐지면 특정 개인을 지목할 수 있는 정보.
+   '법인명 + 규모 + 대표 생년 + 직책'처럼 조합으로 특정 개인(예: 대표이사)을 지목하는 경우도 포함.
+   reid_mask 에는 식별력이 가장 높은 표현 2~3개만(텍스트 그대로) 넣음.
 
-[2] 준식별자 조합(재식별 위험): 단독으로는 특정인을 식별 못 하지만(나이, 성별, 거주지역,
-직장/부서, 직책, 출신학교, 전공, 학위/졸업연도, 보유자산 규모, 가족구성 등) 여러 개가 조합되면
-특정 개인을 식별할 수 있는 정보입니다.
+입력에 그대로 등장하는 부분 문자열만 쓰고, 없는 값은 지어내지 않음.
 
-출력 JSON:
-{
-  "sensitive_amounts": ["개인 귀속 금액 표현 (텍스트에 나온 그대로)"],
-  "quasi_identifiers": ["발견한 준식별자 표현"],
-  "reid_count": 0,
-  "reidentifiable": false,
-  "reid_mask": ["식별력이 가장 높은 표현 2~3개만, 텍스트 그대로의 부분 문자열"]
-}
+[예시]
+입력: "고객명: 황지호 / 이체 한도를 5,000만원으로 상향 / 현재 잔액 5,127만원"
+출력: {"sensitive_amounts":["5,127만원"],"quasi_identifiers":[],"reid_count":0,"reidentifiable":false,"reid_mask":[]}
+(잔액은 개인 귀속 → 마스킹, 한도 5,000만원은 맥락 → 보존)
 
-텍스트에 그대로 등장하는 부분 문자열만 사용하고, 없는 값을 지어내지 마세요.
-예: "이체 한도를 5,000만원으로 상향, 현재 잔액 5,127만원" → sensitive_amounts=["5,127만원"] (한도 5,000만원은 제외)."""
+입력: "대상기업: 정금속공업(주) / 종업원 18명 / 대표자: 1973년생 남성 / 대표이사 / 매출 47억, 운전자금 5억"
+출력: {"sensitive_amounts":[],"quasi_identifiers":["정금속공업(주)","종업원 18명","1973년생","남성","대표이사"],"reid_count":5,"reidentifiable":true,"reid_mask":["정금속공업(주)","1973년생 남성 / 대표이사"]}
+(법인+규모+생년+직책 조합으로 대표 1인 특정 가능 → 마스킹. 매출·운전자금 등 재무 수치는 보존)
+
+입력: "결제 모듈 에러: password: P@ssw0rd!, rrn='731204 1773971', card=4000 0009 8524 0631"
+출력: {"sensitive_amounts":[],"quasi_identifiers":[],"reid_count":0,"reidentifiable":false,"reid_mask":[]}
+(비밀번호·주민번호·카드번호는 결정적 식별자로 규칙 엔진이 별도 차단 → 이 레이어는 관여하지 않음)
+
+입력: "곧 발표될 A전자 미공개 실적으로 매수 전략 짜줘"
+출력: {"sensitive_amounts":[],"quasi_identifiers":[],"reid_count":0,"reidentifiable":false,"reid_mask":[]}
+(미공개 중요정보(MNPI)는 회로 차단으로 별도 처리 → 이 레이어는 관여하지 않음)
+
+이제 아래 텍스트를 같은 형식의 JSON으로만 분석하세요."""
 
 
 def combo_threshold():
@@ -356,39 +364,6 @@ def handle_analyze(payload):
     }
 
 
-def veil_schema():
-    return {
-        "system_prompt": VEIL_MASKING_SYSTEM_PROMPT,
-        "input_schema": {
-            "scenario": "complaint | loan | devlog | custom",
-            "sanitized_text": "rule-masked text sent to VeilAI",
-            "rule_policy": "PASS | MASK | REVIEW | BLOCK",
-            "rule_findings": "array of deterministic findings",
-            "restore_tokens_available": "tokens that can be restored inside trusted app only",
-            "decision_needed": "gray-zone risk instruction",
-        },
-        "output_schema": {
-            "policy": "PASS | MASK | REVIEW | BLOCK",
-            "confidence": "number from 0.0 to 1.0",
-            "summary": "short explanation",
-            "findings": [
-                {
-                    "span": "exact span from sanitized_text if present",
-                    "category": "classification label",
-                    "basis": "legal/policy basis",
-                    "action": "PASS | MASK | PSEUDONYMIZE | TOKENIZE | REVIEW | BLOCK",
-                    "reason": "short reason",
-                }
-            ],
-        },
-        "restore_policy": {
-            "reversible": "MASK/TOKENIZE/PSEUDONYMIZE tokens can be restored in trusted response path",
-            "irreversible": "BLOCK placeholders such as RRN/SECRET are never restored",
-            "review": "REVIEW is held before external model call when BLOCK_ON_REVIEW=true",
-        },
-    }
-
-
 class DemoHandler(BaseHTTPRequestHandler):
     server_version = "VeilAIGateway/0.3"
 
@@ -405,9 +380,6 @@ class DemoHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/config"):
             self.send_json(config())
-            return
-        if self.path.startswith("/api/veil-schema"):
-            self.send_json(veil_schema())
             return
         self.serve_static()
 
@@ -494,8 +466,8 @@ def main():
     cfg = config()
     print("Veil AI gateway running at http://{}:{}/{}".format(host, port, DEFAULT_INDEX))
     print(
-        "LIVE_API_CALLS={} VEILAI_ENABLED={} RESTORE_RESPONSES={} BLOCK_ON_REVIEW={}".format(
-            cfg["live_api_calls"], cfg["veilai_enabled"], cfg["restore_responses"], cfg["block_on_review"]
+        "LIVE_API_CALLS={} VEILAI_ENABLED={} COMBO_MIN_IDENTIFIERS={}".format(
+            cfg["live_api_calls"], cfg["veilai_enabled"], combo_threshold()
         )
     )
     try:
