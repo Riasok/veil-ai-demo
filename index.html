@@ -23,11 +23,12 @@
        font-size:16px;line-height:1.55}
   .wrap{max-width:1180px;margin:0 auto;padding:26px 24px 72px}
 
-  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
-         border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
-  .logo{font-family:var(--mono);font-weight:700;font-size:22px;letter-spacing:-.01em}
+  header{display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;
+         border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:24px}
+  .logo{font-family:var(--mono);font-weight:700;font-size:38px;letter-spacing:-.01em}
   .logo b{color:var(--ai)}
-  .tag{color:var(--ink-2);font-size:14.5px}
+  .tag{color:var(--ink-2);font-size:20px;font-weight:500}
+  .tag b{color:var(--ink);font-weight:700}
 
   .flip-hint{margin-left:auto;font-size:13.5px;color:var(--ink-3);display:flex;align-items:center;gap:7px}
   .flip-hint svg{width:16px;height:16px}
@@ -72,6 +73,7 @@
   mark.m{background:var(--warn-bg);color:var(--warn)}
   mark.r{background:var(--review-bg);color:var(--review)}
   mark.t{background:var(--ai-bg);color:var(--ai)}
+  mark.al{background:var(--llm-bg);color:var(--llm)}
 
   /* BACK: pipeline */
   .back-inner{background:var(--surface);border:1px solid var(--line);border-radius:12px;
@@ -126,7 +128,8 @@
   table.f tr:last-child td{border-bottom:none}
   .badge{font-family:var(--mono);font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:5px}
   .a-BLOCK{background:var(--block-bg);color:var(--block)}
-  .a-TOKENIZE,.a-PSEUDONYMIZE{background:var(--pass-bg);color:var(--pass)}
+  .a-TOKENIZE{background:var(--pass-bg);color:var(--pass)}
+  .a-PSEUDONYMIZE{background:var(--llm-bg);color:var(--llm)}
   .a-MASK{background:var(--warn-bg);color:var(--warn)}
   .a-REVIEW{background:var(--review-bg);color:var(--review)}
   .a-PASS{background:var(--rule-bg);color:var(--rule)}
@@ -139,6 +142,7 @@
              border-bottom:1px solid var(--line);background:var(--surface)}
   .chat-title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
   .chat-title h2{margin:0;font-size:16px;letter-spacing:0}
+  .chat-kicker{font-size:14px;color:var(--ink-3);font-weight:500}
   .chat-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .veil-toggle{border:1px solid var(--ai);background:var(--ai-bg);color:var(--ai);border-radius:7px;
                padding:7px 11px;font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;
@@ -155,10 +159,19 @@
   .msg{display:flex;flex-direction:column;gap:5px;max-width:min(720px,88%);animation:itemIn .16s ease both}
   .msg.user{align-self:flex-end;align-items:flex-end}
   .msg.assistant{align-self:flex-start}
-  .bubble{border:1px solid var(--line);border-radius:8px;padding:11px 13px;white-space:pre-wrap;word-break:break-word;
-          background:#fff;font-size:14.5px;line-height:1.6}
+  .bubble{border:1px solid var(--line);border-radius:9px;padding:13px 15px;white-space:pre-wrap;word-break:break-word;
+          background:#fff;font-size:15.5px;line-height:1.62}
   .msg.user .bubble{background:var(--ai);border-color:var(--ai);color:#fff}
   .msg .meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+  .review-card{border:1px solid var(--warn);background:var(--warn-bg);border-radius:8px;padding:12px 14px;max-width:520px}
+  .review-card .rv-title{font-weight:700;color:var(--warn);font-size:13.5px;margin-bottom:5px}
+  .review-card .rv-body{font-size:13px;color:var(--ink);margin-bottom:7px;line-height:1.5}
+  .review-card .rv-warn{font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-bottom:11px}
+  .review-card .rv-actions{display:flex;gap:8px}
+  .review-card .rv-actions button{border:1px solid var(--line);border-radius:7px;padding:7px 15px;
+    font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+  .review-card .rv-yes{background:var(--ai);color:#fff;border-color:var(--ai)}
+  .review-card .rv-no{background:#fff;color:var(--ink-2)}
   .chat-compose{border-top:1px solid var(--line);padding:12px;background:#fff;flex:none}
   .clear-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:7px;
               padding:7px 10px;font-family:var(--sans);font-size:13px;cursor:pointer;
@@ -175,16 +188,16 @@
   .send-btn{border:1px solid var(--ai);background:var(--ai);color:#fff;border-radius:8px;padding:0 17px;
             min-height:0;flex:1;font-family:var(--sans);font-weight:700;cursor:pointer}
   .send-btn:disabled{opacity:.52;cursor:not-allowed}
-  .example-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:10px;
+  .example-list{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;padding:13px;
                 border-bottom:1px solid var(--line);background:#fff}
-  .example-btn{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:7px;
-               padding:8px 10px;cursor:pointer;font-family:var(--sans);color:var(--ink);
+  .example-btn{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:9px;
+               padding:11px 12px;cursor:pointer;font-family:var(--sans);color:var(--ink);
                transition:background-color .14s ease,border-color .14s ease,box-shadow .14s ease,transform .12s ease}
   .example-btn:hover{border-color:var(--ink-3)}
   .example-btn:active{transform:translateY(1px)}
   .example-btn.active{border-color:var(--ai);box-shadow:0 0 0 1px var(--ai) inset;background:var(--ai-bg)}
-  .example-btn b{display:block;font-size:13.5px;font-weight:700}
-  .example-btn span{display:block;margin-top:2px;font-size:12px;color:var(--ink-3)}
+  .example-btn b{display:block;font-size:15px;font-weight:700;line-height:1.25;margin-bottom:4px}
+  .example-btn span{display:block;font-size:13px;color:var(--ink-3);line-height:1.35}
   .analysis-demo{display:block;overflow:hidden;max-height:2600px;opacity:1;transform:translateY(0);
                  transition:max-height .18s ease,opacity .14s ease,transform .16s ease}
   .analysis-demo.collapsed{max-height:0;opacity:0;transform:translateY(-6px);pointer-events:none}
@@ -198,13 +211,13 @@
   @media(max-width:900px){
     .chat-grid{grid-template-columns:1fr;height:auto;overflow:visible}
     .chat-main{border-right:none;border-bottom:1px solid var(--line);height:560px}
-    .example-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .example-list{grid-template-columns:repeat(3,minmax(0,1fr))}
     .chat-head{align-items:flex-start;flex-direction:column}
     .msg{max-width:100%}
   }
 
   @media(max-width:560px){
-    .example-list{grid-template-columns:1fr}
+    .example-list{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
 
   .foot{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;font-size:13px;color:var(--ink-3)}
@@ -219,14 +232,12 @@
 <div class="wrap">
   <header>
     <div class="logo"><b>Veil</b> AI</div>
-    <div class="tag">금융 LLM 보안 게이트웨이</div>
+    <div class="tag">Your AI, <b>secured.</b></div>
   </header>
 
   <section class="chat-panel" aria-label="Veil AI live chat">
     <div class="chat-head">
-      <div class="chat-title">
-        <h2>Agentic Chatbot for Agentic Chat Gateway</h2>
-      </div>
+      <div class="chat-title"><span class="chat-kicker">실시간 데모 — 예시를 골라 전송해 보세요</span></div>
       <div class="chat-head-actions">
         <button class="veil-toggle" type="button" id="veilToggle">VeilAI ON</button>
       </div>
@@ -251,7 +262,7 @@
   <section class="analysis-demo collapsed" id="analysisDemo">
   <!-- 앞/뒤 전환 토글 -->
   <div class="toggle">
-    <button id="btn-front" class="on" onclick="setFace(false)">입력 · 출력</button>
+    <button id="btn-front" class="on" onclick="setFace(false)">원문 · 전송본</button>
     <button id="btn-back" onclick="setFace(true)">처리 로직 ↻</button>
   </div>
 
@@ -268,8 +279,8 @@
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </div>
           <div class="card">
-            <div class="card-h"><span class="dot out"></span>마스킹 미리보기
-              <span class="verdict v-pass" id="verdict">미리보기</span></div>
+            <div class="card-h"><span class="dot out"></span>외부 LLM 전송본
+              <span class="verdict v-pass" id="verdict">전송본</span></div>
             <div class="card-b" id="cleaned"></div>
           </div>
         </div>
@@ -281,7 +292,6 @@
             <span class="lgnd">
               <span><i style="background:var(--rule)"></i>규칙엔진</span>
               <span><i style="background:var(--ai)"></i>AI 판단</span>
-              <span><i style="background:var(--llm)"></i>외부 LLM</span>
             </span>
           </div>
           <div id="steps"></div>
@@ -310,6 +320,8 @@ function safeAction(value,fallback="PASS"){
   const normalized=String(value || fallback).toUpperCase();
   return SAFE_ACTIONS.has(normalized)?normalized:fallback;
 }
+const ACTION_KO={PASS:"통과",MASK:"마스킹",TOKENIZE:"토큰화",PSEUDONYMIZE:"가명화",REVIEW:"검수",BLOCK:"차단"};
+function actionKo(value){return ACTION_KO[safeAction(value)]||safeAction(value);}
 function clampPercent(value){
   const n=Number(value);
   if(!Number.isFinite(n))return 0;
@@ -329,6 +341,7 @@ const DATA={scenarios:(window.EXAMPLES||{})};
 let curKey=null;
 let flipped=false;
 let chatHistory=[];
+let pendingReview=null;
 let chatBusy=false;
 let veilAIEnabled=true;
 let activeGateway=null;
@@ -339,7 +352,7 @@ Object.entries(DATA.scenarios).forEach(([k,s])=>{
   b.type='button';
   b.className='example-btn';
   b.dataset.scenario=k;
-  b.innerHTML='<b>'+s.name+'</b><span>'+s.who+'</span>';
+  b.innerHTML=`<b>${s.name}</b><span>${s.who}</span>`;
   b.onclick=()=>selectScenario(k,true);
   exampleListEl.appendChild(b);
 });
@@ -369,7 +382,8 @@ function hl(text){
     .replace(/〔차단:[^〕]*〕/g,m=>`<mark class="b">${m}</mark>`)
     .replace(/⟦[^⟧]*⟧/g,m=>`<mark class="t">${m}</mark>`)
     .replace(/⟨[^⟩]*⟩/g,m=>`<mark class="r">${m}</mark>`)
-    .replace(/•••-••••-\d{4}/g,m=>`<mark class="m">${m}</mark>`);
+    .replace(/•••-••••-\d{4}/g,m=>`<mark class="m">${m}</mark>`)
+    .replace(/고객[A-Z]/g,m=>`<mark class="al">${m}</mark>`);
 }
 
 function escapeHTML(value){
@@ -420,7 +434,7 @@ function render(){
 
   const v=document.getElementById('verdict');
   const policy=result?.policy || 'RUNNING';
-  v.textContent=policy==='RUNNING'?'분석 중':`정책 ${safeAction(policy)}`;
+  v.textContent=policy==='RUNNING'?'분석 중':`정책 ${actionKo(policy)}`;
   v.className='verdict '+(policy==='PASS'||policy==='MASK'?'v-pass':'v-block');
 
   const steps=result?.steps || [{
@@ -459,7 +473,7 @@ function render(){
   document.getElementById('ftable').innerHTML=findings.map(r=>{
     const action=safeAction(r.action);
     return `<tr><td style="font-family:var(--mono)">${escapeHTML(r.item || '')}</td><td style="color:var(--ink-2)">${escapeHTML(r.category || '')}</td>
-     <td class="basis">${escapeHTML(r.basis || '')}</td><td><span class="badge a-${action}">${action}</span></td></tr>`;
+     <td class="basis">${escapeHTML(r.basis || '')}</td><td><span class="badge a-${action}">${actionKo(action)}</span></td></tr>`;
   }).join('');
 
   syncHeight();
@@ -480,11 +494,30 @@ const analysisDemo=document.getElementById('analysisDemo');
 const flipToggleBar=document.querySelector('.toggle');
 
 function renderChat(){
-  chatLog.innerHTML=chatHistory.map(msg=>{
+  let html=chatHistory.map(msg=>{
     const role=msg.role==='user'?'user':'assistant';
     const meta=msg.meta?`<div class="meta">${escapeHTML(msg.meta)}</div>`:'';
     return `<div class="msg ${role}"><div class="bubble">${escapeHTML(msg.content)}</div>${meta}</div>`;
   }).join('');
+  if(pendingReview){
+    const rvWhy=pendingReview.message||'자동으로 판단하기 어려운 정보가 있어 검수가 필요합니다.';
+    html+=`<div class="msg assistant"><div class="review-card">`
+      +`<div class="rv-title">⚠️ 검수 필요</div>`
+      +`<div class="rv-body">${escapeHTML(rvWhy)}</div>`
+      +`<div class="rv-warn">진행 시 내역은 기록되며, 승인 책임은 본인에게 있습니다.</div>`
+      +`<div class="rv-actions"><button class="rv-yes" id="rvYes">동의 확인함, 진행</button>`
+      +`<button class="rv-no" id="rvNo">취소</button></div></div></div>`;
+  }
+  chatLog.innerHTML=html;
+  if(pendingReview){
+    const c=pendingReview.content;
+    document.getElementById('rvYes').onclick=()=>{pendingReview=null;runChat(c,{approved:true});};
+    document.getElementById('rvNo').onclick=()=>{
+      pendingReview=null;
+      chatHistory.push({role:'assistant',content:'검수 거절 — 요청을 전송하지 않았습니다.',meta:'blocked'});
+      renderChat();
+    };
+  }
   chatLog.scrollTop=chatLog.scrollHeight;
 }
 
@@ -555,17 +588,12 @@ chatInput.addEventListener('input',()=>{
   }
 });
 
-chatForm.addEventListener('submit',async event=>{
-  event.preventDefault();
-  if(chatBusy)return;
-  const content=chatInput.value.trim();
-  if(!content)return;
+async function runChat(content,opts={}){
+  const approved=!!opts.approved;
   const requestVeilAI=veilAIEnabled;
   const scenarioSent=curKey || 'custom';
   const isExample=scenarioSent!=='custom';
   const reference=(isExample && DATA.scenarios[scenarioSent]) ? (DATA.scenarios[scenarioSent].answer || '') : '';
-  chatHistory.push({role:'user',content});
-  chatInput.value='';
   renderChat();
   if(requestVeilAI){
     activeGateway={
@@ -593,20 +621,26 @@ chatForm.addEventListener('submit',async event=>{
     const res=await fetch('/api/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({scenario:scenarioSent,veilai_enabled:requestVeilAI,reference,messages:chatHistory.map(({role,content})=>({role,content}))})
+      body:JSON.stringify({scenario:scenarioSent,veilai_enabled:requestVeilAI,reference,approved,messages:chatHistory.map(({role,content})=>({role,content}))})
     });
     const data=await res.json();
     if(!res.ok)throw new Error(data.error || `HTTP ${res.status}`);
     // Built-in examples are instant (rule-based/local); hold the "분석 중" deck 2–3s so the gateway processing reads naturally.
     if(isExample){await new Promise(r=>setTimeout(r,2000+Math.random()*1000));}
-    chatHistory.push({role:'assistant',content:data.assistant});
     if(requestVeilAI){
       activeGateway={...data,raw:data.raw || content};
       render();
       updateAnalysisVisibility();
       animateDeck();
     }
+    if(data.needs_review){
+      pendingReview={content,message:data.review_message};
+    }else{
+      pendingReview=null;
+      chatHistory.push({role:'assistant',content:data.assistant});
+    }
   }catch(err){
+    pendingReview=null;
     chatHistory.push({role:'assistant',content:`요청 실패: ${err.message}`,meta:'error'});
     if(requestVeilAI){
       activeGateway={
@@ -624,6 +658,17 @@ chatForm.addEventListener('submit',async event=>{
     renderChat();
     setBusy(false);
   }
+}
+
+chatForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(chatBusy)return;
+  const content=chatInput.value.trim();
+  if(!content)return;
+  pendingReview=null;
+  chatHistory.push({role:'user',content});
+  chatInput.value='';
+  await runChat(content,{approved:false});
 });
 
 renderChat();

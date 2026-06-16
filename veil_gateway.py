@@ -137,6 +137,21 @@ class TokenVault:
         )
         return token
 
+    def alias(self, original, prefix="고객", action="PSEUDONYMIZE", restore=True):
+        """가명화(pseudonymize)용 — 사람처럼 읽히는 가명(고객A, 고객B …)을 만든다.
+        토큰화(불투명 ⟦토큰⟧)와 달리, 치환 후에도 문장이 자연스럽게 읽히도록."""
+        original = str(original)
+        cache_key = ("ALIAS", original, action, restore)
+        if cache_key in self.existing_by_value:
+            return self.existing_by_value[cache_key]
+        self.counts["ALIAS"] = self.counts.get("ALIAS", 0) + 1
+        token = "{}{}".format(prefix, chr(ord("A") + (self.counts["ALIAS"] - 1) % 26))
+        self.existing_by_value[cache_key] = token
+        if restore:
+            self.restore_values[token] = original
+        self.public_map.append({"token": token, "label": "P", "action": action, "reversible": bool(restore)})
+        return token
+
 
 def luhn_ok(value):
     digits = [int(ch) for ch in re.sub(r"\D", "", value)]
@@ -178,37 +193,44 @@ def apply_rule_masking(text, scenario="complaint"):
     vault = TokenVault()
 
     for match in SK_KEY_RE.findall(sanitized):
-        add_finding(findings, seen, finding("OpenAI/API key", "접근매체", "내부 시크릿 정책", "BLOCK"))
+        add_finding(findings, seen, finding("OpenAI/API key", "접근매체", "내부 시크릿 정책", "BLOCK",
+                                            reason="운영 자격증명 — 외부 전송 차단, 즉시 교체 권장"))
     sanitized = SK_KEY_RE.sub("〔차단:SECRET〕", sanitized)
 
     def replace_secret(match):
         key = match.group(1)
-        add_finding(findings, seen, finding(key, "접근매체", "전자금융거래법 §2", "BLOCK"))
+        add_finding(findings, seen, finding(key, "접근매체", "전자금융거래법 §2", "BLOCK",
+                                            reason="운영 자격증명 — 외부 전송 차단, 즉시 교체 권장"))
         return "{}: 〔차단:SECRET〕".format(key)
 
     sanitized = SECRET_RE.sub(replace_secret, sanitized)
 
-    for match in HANGUL_RRN_RE.findall(sanitized):
-        normalized = hangul_digits_to_number(match)
+    # 주민번호는 고유식별자지만, 업무(디버깅 등)는 이어갈 수 있도록 차단이 아닌 가명화로 처리.
+    def replace_hangul_rrn(match):
+        normalized = hangul_digits_to_number(match.group(0))
         item = "주민번호 변형 {}".format(normalized[:6] + "-*******")
-        add_finding(findings, seen, finding(item, "고유식별정보", "개인정보보호법 시행령 §19", "BLOCK"))
-    sanitized = HANGUL_RRN_RE.sub("〔차단:RRN〕", sanitized)
+        add_finding(findings, seen, finding(item, "고유식별정보", "개인정보보호법 시행령 §19", "TOKENIZE"))
+        return vault.token("RRN", match.group(0), action="TOKENIZE")
 
-    for _match in RRN_RE.findall(sanitized):
-        add_finding(findings, seen, finding("주민번호", "고유식별정보", "개인정보보호법 시행령 §19", "BLOCK"))
-    sanitized = RRN_RE.sub("〔차단:RRN〕", sanitized)
+    sanitized = HANGUL_RRN_RE.sub(replace_hangul_rrn, sanitized)
+
+    def replace_rrn(match):
+        add_finding(findings, seen, finding("주민번호", "고유식별정보", "개인정보보호법 시행령 §19", "TOKENIZE"))
+        return vault.token("RRN", match.group(0), action="TOKENIZE")
+
+    sanitized = RRN_RE.sub(replace_rrn, sanitized)
 
     def replace_phone(match):
         value = match.group(0)
-        add_finding(findings, seen, finding(value, "식별정보", "신용정보법 §2-1의2", "MASK"))
-        return vault.token("PHONE", value, action="MASK")
+        add_finding(findings, seen, finding(value, "식별정보", "신용정보법 §2-1의2", "TOKENIZE"))
+        return vault.token("PHONE", value, action="TOKENIZE")
 
     sanitized = PHONE_RE.sub(replace_phone, sanitized)
 
     def replace_account(match):
         value = match.group(0)
-        add_finding(findings, seen, finding(value, "거래내용정보", "신용정보법 §2-1의3", "PSEUDONYMIZE"))
-        return vault.token("ACCT", value, action="PSEUDONYMIZE")
+        add_finding(findings, seen, finding(value, "거래내용정보", "신용정보법 §2-1의3", "TOKENIZE"))
+        return vault.token("ACCT", value, action="TOKENIZE")
 
     sanitized = ACCOUNT_RE.sub(replace_account, sanitized)
 
@@ -231,56 +253,47 @@ def apply_rule_masking(text, scenario="complaint"):
         sep = match.group("sep")
         name = match.group("name")
         add_finding(findings, seen, finding(name, "식별정보", "신용정보법 §2-1의2", "PSEUDONYMIZE"))
-        return "{}{}{}".format(label, sep, vault.token("P", name, action="PSEUDONYMIZE"))
+        return "{}{}{}".format(label, sep, vault.alias(name))
 
     sanitized = NAME_FIELD_RE.sub(replace_name_field, sanitized)
 
     for name in KNOWN_NAMES:
         if name in sanitized:
             add_finding(findings, seen, finding(name, "식별정보", "신용정보법 §2-1의2", "PSEUDONYMIZE"))
-            sanitized = sanitized.replace(name, vault.token("P", name, action="PSEUDONYMIZE"))
+            sanitized = sanitized.replace(name, vault.alias(name))
 
     def replace_context_name(match):
         name = match.group(1)
         if name in NAME_STOPWORDS:
             return name
         add_finding(findings, seen, finding(name, "식별정보", "신용정보법 §2-1의2", "PSEUDONYMIZE"))
-        return vault.token("P", name, action="PSEUDONYMIZE")
+        return vault.alias(name)
 
     sanitized = NAME_CONTEXT_RE.sub(replace_context_name, sanitized)
 
     def replace_balance(match):
         value = match.group(0)
-        add_finding(findings, seen, finding("잔액", "거래내용정보 (맥락)", "신용정보법 §2-1의3", "PSEUDONYMIZE"))
-        return vault.token("AMOUNT_TXN", value, action="PSEUDONYMIZE")
+        add_finding(findings, seen, finding("잔액", "거래내용정보 (맥락)", "신용정보법 §2-1의3", "TOKENIZE"))
+        return vault.token("AMOUNT_TXN", value, action="TOKENIZE")
 
     sanitized = BALANCE_RE.sub(replace_balance, sanitized)
 
     def replace_credit(match):
         value = match.group(0)
-        add_finding(findings, seen, finding("신용등급", "기타 신용판단정보", "신용정보법 §2-1의6", "PSEUDONYMIZE"))
-        return vault.token("CREDIT_GRADE", value, action="PSEUDONYMIZE")
+        add_finding(findings, seen, finding("신용등급", "기타 신용판단정보", "신용정보법 §2-1의6", "TOKENIZE"))
+        return vault.token("CREDIT_GRADE", value, action="TOKENIZE")
 
     sanitized = CREDIT_RE.sub(replace_credit, sanitized)
 
     def replace_delinquency(match):
         value = match.group(0)
-        add_finding(findings, seen, finding("연체 이력", "신용도판단정보", "신용정보법 §2-1의4", "PSEUDONYMIZE"))
-        return vault.token("DELINQ", value, action="PSEUDONYMIZE")
+        add_finding(findings, seen, finding("연체 이력", "신용도판단정보", "신용정보법 §2-1의4", "TOKENIZE"))
+        return vault.token("DELINQ", value, action="TOKENIZE")
 
     sanitized = DELINQUENCY_RE.sub(replace_delinquency, sanitized)
 
-    if "정금속공업" in sanitized and "1973년생" in sanitized and "대표이사" in sanitized:
-        add_finding(
-            findings,
-            seen,
-            finding("법인+생년+직책 결합", "개인신용정보 (결합식별)", "신용정보법 §2-2호", "PSEUDONYMIZE", reason="단독 식별자는 없지만 조합으로 특정 가능"),
-        )
-        sanitized = sanitized.replace("정금속공업(주)", vault.token("ORG", "정금속공업(주)", action="PSEUDONYMIZE"))
-        sanitized = sanitized.replace(
-            "1973년생 남성 / 대표이사",
-            vault.token("REP_CONTEXT", "1973년생 남성 / 대표이사", action="PSEUDONYMIZE"),
-        )
+    # 법인+생년+직책 '결합 재식별'은 정규식으로 표현 불가능한 의미 판단이라, 룰 레이어가
+    # 아니라 L2 VeilAI 판단(add_combination_risk)에서 처리한다. (gateway_preview 참고)
 
     for match in INTERNAL_HOST_RE.findall(sanitized):
         add_finding(findings, seen, finding(match, "기술자산 (대외비)", "내부 등급분류", "REVIEW"))
@@ -389,12 +402,25 @@ def public_gateway_result(result):
     return public
 
 
-def mark_circuit_break(result, item, category, basis, reason=""):
-    """Force a BLOCK (circuit break) on a preview result, e.g. the MNPI demo case."""
+def mark_circuit_break(result, item, category, basis, reason="", engine="llm"):
+    """Force a BLOCK (circuit break) on a preview result, e.g. the MNPI demo case.
+    Defaults to engine='llm' so semantic blocks (MNPI) surface under the L2 VeilAI
+    judgment layer, not L1 regex masking."""
     result["findings"] = [f for f in result.get("findings", []) if f.get("item") != "탐지 없음"]
-    result["findings"].append(finding(item, category, basis, "BLOCK", engine="rule", reason=reason))
+    result["findings"].append(finding(item, category, basis, "BLOCK", engine=engine, reason=reason))
     result["policy"] = "BLOCK"
-    result["steps"] = build_steps(result, llm_used=False)
+    result["steps"] = build_steps(result, llm_used=engine == "llm")
+    return result
+
+
+def mark_review(result, item, category, basis, reason="", engine="llm"):
+    """Force a REVIEW (human-in-the-loop) verdict, e.g. the sensitive-data consent case.
+    Defaults to engine='llm' so it surfaces under the L2 VeilAI judgment layer — this is
+    a semantic call the rule layer cannot make, not a deterministic pattern match."""
+    result["findings"] = [f for f in result.get("findings", []) if f.get("item") != "탐지 없음"]
+    result["findings"].append(finding(item, category, basis, "REVIEW", engine=engine, reason=reason))
+    result["policy"] = "REVIEW"
+    result["steps"] = build_steps(result, llm_used=engine == "llm")
     return result
 
 
@@ -409,7 +435,7 @@ def add_combination_risk(result, spans, count):
             token = "⟦COMBO_{:03d}⟧".format(len(masked) + 1)
             result["sanitized"] = result["sanitized"].replace(span, token)
             result.setdefault("restore_map", []).append(
-                {"token": token, "label": "COMBO", "action": "MASK", "reversible": False}
+                {"token": token, "label": "COMBO", "action": "TOKENIZE", "reversible": False}
             )
             masked.append(span)
     result["findings"].append(
@@ -417,7 +443,7 @@ def add_combination_risk(result, spans, count):
             "결합 식별 위험 (준식별자 {}개)".format(count),
             "결합식별 (재식별 위험)",
             "개인정보보호법 §2 (가명·익명처리)",
-            "MASK",
+            "TOKENIZE",
             engine="llm",
             reason="단독으로는 비민감하나 조합 시 특정 가능 — 식별력 높은 {}개 마스킹".format(len(masked)),
         )
@@ -438,7 +464,7 @@ def add_amount_masks(result, spans):
             token = "⟦AMOUNT_{:03d}⟧".format(len(masked) + 1)
             result["sanitized"] = result["sanitized"].replace(span, token)
             result.setdefault("restore_map", []).append(
-                {"token": token, "label": "AMOUNT", "action": "PSEUDONYMIZE", "reversible": False}
+                {"token": token, "label": "AMOUNT", "action": "TOKENIZE", "reversible": False}
             )
             masked.append(span)
     if masked:
@@ -447,7 +473,7 @@ def add_amount_masks(result, spans):
                 "개인 귀속 금액",
                 "거래내용정보 (개인 귀속)",
                 "신용정보법 §2-1의3",
-                "PSEUDONYMIZE",
+                "TOKENIZE",
                 engine="llm",
                 reason="개인·계좌 특정 금액 {}건만 마스킹 (한도·재무 등 맥락 수치는 보존)".format(len(masked)),
             )

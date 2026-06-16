@@ -16,6 +16,7 @@ from veil_gateway import (
     add_combination_risk,
     apply_rule_masking,
     mark_circuit_break,
+    mark_review,
     normalize_policy,
     public_gateway_result,
 )
@@ -23,7 +24,7 @@ from veil_gateway import (
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_INDEX = "index.html"
-SCENARIOS = {"complaint", "loan", "devlog", "mnpi", "custom"}
+SCENARIOS = {"complaint", "loan", "consent", "devlog", "mnpi", "custom"}
 STATIC_ALIASES = {
     "/veil_demo_v3.html": "/" + DEFAULT_INDEX,
 }
@@ -240,18 +241,57 @@ def run_llm_masking_layer(result, text, cfg):
         add_combination_risk(result, spans, count)
 
 
+# Pre-disclosure earnings signals. No explicit "공시/미공개/MNPI" keyword needed —
+# a cluster of result-metric signals (revenue, OP, YoY, consensus, bp) reads as a
+# pre-announcement earnings table, which is MNPI in context. Demo heuristic.
+MNPI_SIGNALS = (
+    r"매출",
+    r"영업익|영업이익",
+    r"순이익|당기순이익",
+    r"YoY|전년\s*동기",
+    r"컨센|컨센서스|guidance|가이던스",
+    r"\bbp\b|상회|하회",
+)
+
+
+def looks_like_mnpi(text):
+    if not text:
+        return False
+    hits = sum(1 for pattern in MNPI_SIGNALS if re.search(pattern, text, re.I))
+    return hits >= 3
+
+
 def gateway_preview(text, scenario, cfg=None):
     """Display-only analysis: what the gateway WOULD mask/block. The actual chat is
     always sent as plain text, so this never changes what the model receives."""
     result = apply_rule_masking(text, scenario)
-    if scenario == "mnpi":
+    if scenario == "mnpi" or looks_like_mnpi(text):
         mark_circuit_break(
             result,
-            "미공개 중요정보 (MNPI)",
-            "미공개 중요정보",
+            "미공개 중요정보 정황 (공시 전 분기 실적)",
+            "맥락 결합 위험 (MNPI)",
             "자본시장법 §174 (미공개중요정보 이용금지)",
-            reason="미공개 중요정보 이용 정황으로 외부 모델 전송을 차단",
+            reason="키워드는 없으나 입력의 '분기 실적 수치 + 컨센서스 대비(vs 컨센) + 발표자료 목적'이 공시 전 미발표 실적 정황 → MNPI 차단",
         )
+        return result
+    if scenario == "consent":
+        mark_review(
+            result,
+            "민감정보 처리 (건강정보)",
+            "회색지대 — 동의 확인 필요",
+            "개인정보보호법 §23 (민감정보 처리 제한, 동의 시 예외)",
+            reason="건강정보는 별도 동의가 있어야 처리 가능하나, 이 고객의 동의 여부를 시스템이 확인할 수 없어 심사역 확인이 필요합니다.",
+        )
+        return result
+    if scenario == "complaint":
+        # L1 룰이 정형 PII(전화·계좌·잔액·이름·등급)를 마스킹한 뒤, 룰이 못 잡는
+        # '개인 귀속 금액'(키워드 없는 3억)을 L2 AI가 추가로 골라 마스킹. 맥락 수치인
+        # 이체 한도(5,000만원)는 일부러 보존 — 패턴이 아닌 '의미'로 분별함을 보여줌.
+        add_amount_masks(result, ["3억"])
+        return result
+    if scenario == "loan":
+        # 법인+생년+직책 결합 재식별은 정규식으로 불가능한 의미 판단 → L2 AI가 처리.
+        add_combination_risk(result, ["정금속공업(주)", "1973년생 남성 / 대표이사"], 3)
         return result
     # Quasi-identifier combination is open-vocabulary, so a small LLM layer counts
     # them on free-typed input and masks the most identifying few in the preview.
@@ -316,7 +356,33 @@ def handle_chat(payload):
     gateway_result = gateway_preview(latest_user, scenario, cfg)
     policy = normalize_policy(gateway_result["policy"])
     # MNPI is the only circuit break, and only while the VeilAI gateway is on.
-    circuit_break = scenario == "mnpi" and cfg["veilai_enabled"]
+    circuit_break = (scenario == "mnpi" or looks_like_mnpi(latest_user)) and cfg["veilai_enabled"]
+
+    # Human-in-the-loop: a REVIEW verdict is held for explicit approval (unless the
+    # user already approved on resend). Nothing is sent to the model until then.
+    approved = bool(payload.get("approved"))
+    needs_review = (
+        policy == "REVIEW" and cfg["veilai_enabled"] and not circuit_break and not approved
+    )
+    if needs_review:
+        review_message = next(
+            (
+                f.get("reason")
+                for f in gateway_result.get("findings", [])
+                if f.get("action") == "REVIEW" and f.get("reason")
+            ),
+            "",
+        )
+        return {
+            **public_gateway_result(gateway_result),
+            "assistant": None,
+            "policy": policy,
+            "circuit_break": False,
+            "needs_review": True,
+            "review_message": review_message,
+            "model": "needs-review",
+            "called_external_model": False,
+        }
 
     called_external = False
     if circuit_break:
@@ -345,6 +411,7 @@ def handle_chat(payload):
         "assistant": assistant,
         "policy": policy,
         "circuit_break": circuit_break,
+        "needs_review": False,
         "model": model,
         "called_external_model": called_external,
     }
